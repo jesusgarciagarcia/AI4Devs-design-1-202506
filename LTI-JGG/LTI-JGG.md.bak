@@ -1,0 +1,404 @@
+# Resumen MVP
+
+## A. Resumen ejecutivo
+
+**LTI** es un **ATS de nueva generación** que combina **automatización**, **IA contextual** y **colaboración en tiempo real** para transformar el reclutamiento en una experiencia **ágil, transparente y predictiva**. Frente a los ATS tradicionales que solo registran procesos, LTI **orquesta** el flujo end-to-end: desde la creación de vacantes y la gestión de pipelines, hasta la coordinación de entrevistas y la toma de decisiones en equipo.
+
+### Objetivos estratégicos (MVP)
+
+1. Validar rapidez operativa con **Smart Pipelines**; 2) demostrar el valor de **asistencia de IA** (generación de JD, resúmenes y correos); 3) fomentar la **colaboración** con un **Hiring Feed** en tiempo real. Estos tres pilares son el foco del MVP por impacto, viabilidad y aprendizaje validable.
+
+### Valor añadido
+
+* **Eficiencia:** reducción de tareas manuales mediante automatizaciones activadas por eventos del pipeline.
+* **Colaboración fluida:** coedición, comentarios y consenso ligero (reacciones) en un feed centralizado.
+* **IA contextual:** generación de artefactos (JD, emails, resúmenes) con trazabilidad y explicabilidad.
+* **Arquitectura lista para escalar:** monolito modular en .NET 9 con PostgreSQL, colas para tareas asíncronas e integración externa progresiva.
+
+---
+
+## B. Funciones principales (MVP)
+
+| Módulo                         | Funcionalidad                                                                    | Qué resuelve                                          | Output/Indicadores                                                   |
+| ------------------------------ | -------------------------------------------------------------------------------- | ----------------------------------------------------- | -------------------------------------------------------------------- |
+| **Smart Pipelines**            | Etapas configurables, transiciones auditable, reglas “lite” (OnStageEnter/Leave) | Elimina gestión manual repetitiva                     | ↓ tiempo de gestión; histórico de transiciones; triggers de acciones |
+| **AI Recruiter Assistant**     | Genera JD, resúmenes de candidatos y borradores de email                         | Acelera creación de artefactos y reduce errores       | ↓ tiempo de creación; satisfacción del equipo                        |
+| **Collaborative Hiring Feed**  | Timeline unificado de actividad, comentarios y reacciones                        | Sincroniza al equipo y reduce reuniones               | ↑ participación; ↓ ciclo de decisión                                 |
+| **Entrevistas & Evaluaciones** | Programación básica; scorecards por etapa/usuario                                | Estandariza evaluación; prepara autoscheduling futuro | completitud de evaluaciones; conversión por etapa                    |
+| **Notificaciones**             | Email/Slack desde reglas o acciones manuales                                     | Comunicación oportuna con stakeholders                | Tasa de notificación y respuesta                                     |
+
+Base funcional sustentada por entidades canónicas (JobPosting, Pipeline/Stage, Application, StageTransition, Interview, Evaluation) y un **FeedEvent** como “cinta” de actividad.
+
+---
+
+## C. Lean Canvas
+
+| Bloque                    | Resumen                                                                                                                            |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| **Problema**              | Procesos lentos y fragmentados; poca colaboración; operaciones manuales; carencia de analítica y de IA contextual.                 |
+| **Segmentos de clientes** | Equipos de HR en scale-ups/SMBs tecnológicas y unidades de talento en mid-market que buscan agilidad y datos.                      |
+| **Propuesta de valor**    | **ATS inteligente** que **automatiza**, **asiste** y **conecta** al equipo: pipelines dinámicos, feed colaborativo e IA trazable.  |
+| **Solución**              | Smart Pipelines + AI Recruiter + Hiring Feed, con programación de entrevistas y notificaciones integradas.                         |
+| **Canales**               | Venta directa B2B, partners de HR tech, integraciones (Slack/Calendars) y contenidos educativos.                                   |
+| **Flujo de ingresos**     | Suscripción por organización/usuarios activos; niveles por volumen de vacantes/entrevistas; add-ons de IA.                         |
+| **Estructura de costes**  | Infra cloud (DB, storage, colas), llamadas a LLM, soporte e integraciones; desarrollo .NET/React.                                  |
+| **Métricas clave**        | Time-to-hire, conversión por etapa, uso del asistente IA, actividad en feed, SLA de notificaciones.                                |
+| **Ventaja competitiva**   | UX fluida, colaboración real, automatización no-code y **IA contextual con explicabilidad** y cumplimiento.                        |
+
+---
+
+## D. Casos de uso (top-3 del MVP)
+
+> Seleccionados por valor inmediato, viabilidad y aprendizaje medible.
+
+### 1) Smart Pipelines — “Gestionar procesos de selección con automatización”
+
+* **Objetivo:** configurar etapas y automatizar acciones en cambios de estado (entrevista, correo, notificación).
+* **Actores:** Reclutador, Hiring Manager, Sistema LTI.
+* **Flujo principal:**
+
+  1. HR crea/selecciona plantilla de vacante; 2) LTI sugiere pipeline por rol; 3) Al mover candidato de etapa, se disparan acciones; 4) Manager revisa avance/comenta.
+* **Valor aportado:** ↓ 40% tiempo operativo; trazabilidad; consistencia.
+* **Diagrama (texto):**
+
+```text
+[HR] -> (Crear/Seleccionar Vacante)
+      -> [LTI: Generar Pipeline Sugerido]
+      -> (Arrastrar Candidato a Etapa X)
+         -> [Evento: StageTransition]
+             -> [AutomationRule] -> (Crear Entrevista | Enviar Email | Notificar Slack)
+             -> [FeedEvent] -> (Visibilidad Equipo)
+[Manager] -> (Comentar/Valorar)
+```
+
+```mermaid
+sequenceDiagram
+    participant HR as HR
+    participant LTI as LTI System
+    participant Manager as Manager
+    HR->>LTI: Crear/Seleccionar Vacante
+    LTI-->>HR: Generar Pipeline sugerido
+    HR->>LTI: Mover candidato a etapa X
+    LTI->>LTI: Evento StageTransition
+    LTI->>LTI: Ejecutar AutomationRule (crear entrevista / enviar email / notificar)
+    LTI->>Manager: Publicar FeedEvent
+    Manager->>LTI: Comentar / Valorar candidato
+
+```
+
+Relacionado con entidades `Pipeline`, `PipelineStage`, `Application`, `StageTransition`, `AutomationRule`, `FeedEvent`.
+
+---
+
+### 2) AI Recruiter Assistant — “Asistente para crear vacantes y artefactos”
+
+* **Objetivo:** acelerar creación de JD, emails y resúmenes; proponer etapas iniciales.
+* **Actores:** Reclutador, Sistema (IA contextual).
+* **Flujo principal:** 1) Usuario activa asistente; 2) Solicita JD basada en patrones previos; 3) IA genera propuesta; 4) HR revisa y publica.
+* **Valor aportado:** ↓ 50% tiempo de creación; consistencia y menor error.
+* **Diagrama (texto):**
+
+```text
+[HR] -> (Invocar Asistente)
+     -> "Crea JD Full Stack basado en patrones"
+[LTI/IA] -> (Analiza históricos/plantillas)
+         -> (Genera JD + Pipeline inicial)
+[HR] -> (Revisar/Ajustar/Guardar)
+```
+
+```mermaid
+sequenceDiagram
+    participant HR as HR
+    participant IA as AI Recruiter
+    HR->>IA: Solicita JD basado en patrones previos
+    IA-->>HR: Analiza históricos y plantillas
+    IA-->>HR: Genera JD + pipeline inicial
+    HR->>IA: Revisa, ajusta y guarda publicación
+```
+
+Trazabilidad vía `AIArtifact` (prompt/output con referencia a origen).
+
+---
+
+### 3) Collaborative Hiring Feed — “Decidir en equipo, en tiempo real”
+
+* **Objetivo:** centralizar la actividad del proceso (cambios, comentarios, evaluaciones) y acelerar decisiones.
+* **Actores:** HR, Managers, Dirección, IA de resumen.
+* **Flujo principal:** 1) Cualquier evento publica un `FeedEvent`; 2) usuarios comentan/reaccionan; 3) IA puede sintetizar estado/controversias.
+* **Valor aportado:** ↑ participación; ↓ 30% ciclo de decisión.
+* **Diagrama (texto):**
+
+```text
+[Eventos del Proceso] -> [FeedEvent] -> (Render en Feed)
+[Usuarios] -> (Comentarios/Reacciones)
+[IA] -> (Resumen Contextual / Sugerencias)
+```
+
+```mermaid
+sequenceDiagram
+    participant Sistema as Sistema LTI
+    participant Usuarios as Usuarios
+    participant IA as IA Resumen
+
+    Sistema->>Sistema: Publicar FeedEvent (evento del proceso)
+    Usuarios->>Sistema: Comentar / reaccionar
+    Sistema-->>IA: Contexto del feed
+    IA-->>Usuarios: Generar resumen o sugerencias
+```
+
+Sustentado por `FeedEvent`, `Comment`, `Reaction` y `AIArtifact`.
+
+---
+
+## E. Modelo de datos (resumen)
+
+> Modelo relacional con **entidades canónicas** y eventos auditables; denormalización táctica para lectura rápida del stage actual.
+
+### Entidades clave (atributos y tipos)
+
+* **Organization**: `OrganizationId:uuid`, `Name:string`, `Domain:string?`, `CreatedAt:datetime`
+* **User**: `UserId:uuid`, `OrganizationId:uuid`, `Email:string`, `FullName:string`, `Active:bool`, `CreatedAt:datetime`
+* **JobPosting**: `JobPostingId:uuid`, `OrganizationId:uuid`, `Title:string`, `Description:text`, `Seniority:enum`, `Status:enum`, `CreatedBy:uuid`, `CreatedAt:datetime`, `PublishedAt:datetime?`
+* **Pipeline**: `PipelineId:uuid`, `JobPostingId:uuid(1:1)`, `Name:string`, `CreatedAt:datetime`; **PipelineStage**: `StageId:uuid`, `PipelineId:uuid`, `Name:string`, `Type:enum`, `OrderIndex:int`
+* **Candidate**: `CandidateId:uuid`, `FullName:string`, `Email:string`, `Phone:string?`, `Location:string?`, `CreatedAt:datetime`
+* **Application**: `ApplicationId:uuid`, `CandidateId:uuid`, `JobPostingId:uuid`, `CurrentStageId:uuid?`, `Status:enum`, `Source:string?`, `CreatedAt:datetime`
+* **StageTransition**: `TransitionId:uuid`, `ApplicationId:uuid`, `FromStageId:uuid?`, `ToStageId:uuid`, `ChangedBy:uuid`, `Reason:string?`, `OccurredAt:datetime`
+* **Interview/InterviewInterviewer**: agenda básica con N:M entrevistadores
+* **Evaluation**: `EvaluationId:uuid`, `ApplicationId:uuid`, `ByUserId:uuid`, `StageId:uuid`, `Score:smallint`, `Dimensions:jsonb`, `Notes:text`, `CreatedAt:datetime`
+* **FeedEvent/Comment/Reaction**: colaboración en tiempo real
+* **AIArtifact**: `Kind`, `SourceType/Id`, `Prompt`, `Output`, `CreatedBy?`, `CreatedAt`
+* **AutomationRule**: `Trigger`, `TriggerStageId?`, `Actions:jsonb`
+* **Notification**, **Attachment**, **CalendarAccount**.
+
+### Diagrama ER (ASCII)
+
+```text
+Organization 1──* User
+Organization 1──* JobPosting 1──1 Pipeline 1──* PipelineStage
+Candidate 1──* Application *──1 JobPosting
+Application 1──* StageTransition
+Application 1──* Interview *──* User (InterviewInterviewer)
+Application 1──* Evaluation
+(Any) ──* FeedEvent 1──* Comment ; (FeedEvent|Comment) ──* Reaction
+(JobPosting|Application|Candidate|Feed) ──* AIArtifact
+Organization ──* AutomationRule ──> (Notification 0..*)
+(Any of Candidate|Application|JobPosting) ──* Attachment
+```
+
+```mermaid
+erDiagram
+    Organization ||--o{ User : tiene
+    Organization ||--o{ JobPosting : publica
+    JobPosting ||--|| Pipeline : usa
+    Pipeline ||--o{ PipelineStage : contiene
+    Candidate ||--o{ Application : aplica
+    JobPosting ||--o{ Application : recibe
+    Application ||--o{ StageTransition : registra
+    Application ||--o{ Interview : incluye
+    Interview ||--o{ User : entrevistador
+    Application ||--o{ Evaluation : evalúa
+    FeedEvent ||--o{ Comment : contiene
+    Comment ||--o{ Reaction : tiene
+    JobPosting ||--o{ AIArtifact : genera
+    Application ||--o{ AIArtifact : genera
+    Candidate ||--o{ AIArtifact : genera
+    FeedEvent ||--o{ AIArtifact : genera
+    Organization ||--o{ AutomationRule : define
+    AutomationRule ||--o{ Notification : dispara
+```
+
+---
+
+## F. Diseño del sistema (alto nivel)
+
+**Principios:** rapidez de validación, monolito modular con límites claros (Recruitment, Collaboration, Automation, AI), comunicación REST + colas asíncronas, trazabilidad con OpenTelemetry, multi-tenancy por diseño.
+
+### Diagrama de arquitectura (ASCII)
+
+```text
+[ Web SPA (React/Next) ]
+          │ HTTPS (JWT, x-api-version)
+          ▼
+[ API Gateway / BFF (.NET 9 Minimal API) ]
+          │
+          ▼
+[ Application Core (.NET 9, DDD/MediatR) ] ───► [ Notification Worker (.NET) ]
+          │                                    (SMTP/Slack via RabbitMQ)
+          │
+          ├──► [ AI Artifact Service (Python/FastAPI → LLM externo) ]
+          │
+          ├──► [ RabbitMQ (Eventos/Automations) ]
+          │
+          ├──► [ PostgreSQL 16 (NHibernate) ]
+          └──► [ Object Storage (CVs/Adjuntos) ]
+```
+
+```mermaid
+flowchart TD
+    subgraph Frontend
+        Web["Web SPA (React/Next)"]
+    end
+
+    subgraph Backend
+        APIGateway["API Gateway / BFF (.NET 9)"]
+        AppCore["Application Core (DDD / MediatR)"]
+        Worker["Notification Worker (.NET)"]
+        AIService["AI Artifact Service (Python/FastAPI)"]
+        Queue["RabbitMQ (Eventos / Automations)"]
+        DB["(PostgreSQL 16)"]
+        Storage["(Object Storage)"]
+    end
+
+    Web -->|HTTPS JWT| APIGateway --> AppCore
+    AppCore --> Worker
+    AppCore --> AIService
+    AppCore --> Queue
+    AppCore --> DB
+    AppCore --> Storage
+    Worker -->|Notificaciones| Email[SMTP/Slack]
+```
+
+**Seguridad:** JWT con *tenant claim*; autorización por rol/política; errores con **ProblemDetails**; trazas y métricas con OpenTelemetry. **Integraciones mínimas**: SMTP/Slack, Calendar (Google/Microsoft) para programación básica.
+
+---
+
+## G. Diagrama C4 — Componente seleccionado: **Smart Pipelines**
+
+> Se detalla el subsistema que materializa pipeline/etapas, transiciones y automatizaciones “lite”.
+
+### C1. Contexto del sistema
+
+```text
+[HR/Managers] ── usan ──> [LTI ATS]
+[Candidatos]  ── aplican ─> [LTI ATS]
+
+[LTI ATS] ── integra ──> [Calendarios] (programar entrevistas)
+[LTI ATS] ── notifica ──> [Email/Slack]
+[LTI ATS] ── consume ──> [LLM externo] (AI artifacts)
+```
+
+```mermaid
+graph TD
+    HR[HR / Managers] -->|Usan| LTI[LTI ATS]
+    Candidatos[Candidatos] -->|Aplican| LTI
+    LTI -->|Integra| Calendarios[Calendarios externos]
+    LTI -->|Notifica| Slack[Email / Slack]
+    LTI -->|Consume| LLM[LLM Externo]
+```
+
+LTI es el sistema central de reclutamiento; Smart Pipelines es su núcleo de orquestación de etapas y acciones.
+
+### C2. Contenedores (en torno a Smart Pipelines)
+
+```text
+[Web SPA]
+   │ REST
+   ▼
+[API Gateway/BFF]
+   │ Commands/Queries
+   ▼
+[App Core: Recruitment BC]  <── events ──> [Automation Worker]
+   │                               │
+   │ NHibernate                    │ RabbitMQ
+   ▼                               ▼
+[PostgreSQL]                  [Notification Svc] → Email/Slack
+```
+
+```mermaid
+graph TD
+    WebSPA[Web SPA] -->|REST| BFF[API Gateway / BFF]
+    BFF -->|Commands / Queries| Core[App Core: Recruitment BC]
+    Core -->|Eventos| Worker[Automation Worker]
+    Core -->|NHibernate| DB[(PostgreSQL)]
+    Worker -->|RabbitMQ| Queue[(RabbitMQ)]
+    Worker -->|Email/Slack| Notif[Notification Svc]
+```
+
+* **Recruitment BC (App Core):** casos de uso `CreateJobPosting`, `ConfigurePipeline`, `MoveCandidate`, `RecordStageTransition`.
+* **Automation Worker:** escucha eventos `StageTransitionOccurred` y ejecuta `Actions` (crear entrevista, enviar notificación).
+* **Persistencia:** `JobPosting`, `Pipeline`, `PipelineStage`, `Application`, `StageTransition`.
+
+### C3. Componentes internos (Smart Pipelines)
+
+```text
++--------------------------------------------------------------+
+|           Recruitment BC (dentro del Application Core)       |
+|                                                              |
+|  [Commands]            [Domain]                  [Infra]     |
+|  - CreateJobPosting    - JobPostingAggregate     - Repos     |
+|  - ConfigurePipeline   - Pipeline, PipelineStage - NHibernate|
+|  - MoveCandidate       - Application             - Outbox    |
+|                        - Events:                 - Pub/Sub   |
+|                          StageTransitionOccurred            |
+|                                                              |
+|  [Policies/Services]                                         |
+|  - StageRulesPolicy (valida etapas)                           |
+|  - AutomationPublisher (emite eventos a cola)                |
++--------------------------------------------------------------+
+
+Automation Worker
+  - Handlers: OnStageEnter/Leave
+  - ActionExecutor: (create_interview | email_candidate | notify_slack)
+  - Idempotency & retries
+```
+
+```mermaid
+graph TD
+    subgraph RecruitmentBC ["Recruitment BC (Application Core)"]
+        Commands["Commands<br/>CreateJobPosting / ConfigurePipeline / MoveCandidate"]
+        Domain["Domain<br/>JobPostingAggregate / Pipeline / Application"]
+        Policies["StageRulesPolicy / AutomationPublisher"]
+        Infra["Infra<br/>Repos / NHibernate / Outbox / PubSub"]
+    end
+
+    Commands --> Domain
+    Domain --> Policies
+    Policies --> Infra
+    Infra -->|Eventos| Worker[Automation Worker]
+
+    subgraph AutomationWorker [Automation Worker]
+        Handlers[Handlers OnStageEnter/Leave]
+        Executor[ActionExecutor<br/>create_interview / email_candidate / notify_slack]
+    end
+
+    Worker -->|Side-effects| Email[SMTP/Slack]
+```
+
+**Explicación:**
+
+* **Commands** encapsulan casos de uso.
+* **Domain** define aggregates y emite `StageTransitionOccurred`.
+* **AutomationPublisher** publica eventos a RabbitMQ (patrón Outbox para fiabilidad).
+* **Worker** consume eventos y ejecuta `Actions` declaradas en `AutomationRule` (jsonb). **Entrevistas** y **notificaciones** se materializan como side-effects transaccionalmente consistentes.
+
+---
+
+## H. Conclusión
+
+Este diseño **alinea negocio y técnica** para un MVP enfocado en **automatizar (Smart Pipelines)**, **asistir con IA (AI Recruiter)** y **conectar equipos (Hiring Feed)**:
+
+* **De negocio:** reduce *time-to-hire*, eleva la calidad de decisión y diferencia con **IA contextual + colaboración**.
+* **De producto:** prioriza tres casos de uso de alto impacto y aprendizaje medible.
+* **De arquitectura:** base **sólida y extensible** (monolito modular, eventos, PostgreSQL, observabilidad, integraciones mínimas) preparada para evolucionar a microservicios e IA más avanzada cuando el mercado lo pida.
+
+**Suposiciones del MVP (explícitas):** un pipeline por vacante; automatizaciones con 2–3 triggers y 3–4 acciones predefinidas; programación de entrevistas sin sincronización de disponibilidad; evaluaciones con `Dimensions:jsonb`; feed basado en publicación de eventos. Estas decisiones simplifican el **time-to-market** manteniendo trazabilidad y escalabilidad futura.
+
+---
+
+### Apéndice (DDL orientativo — núcleo de transiciones)
+
+```sql
+CREATE TABLE StageTransition (
+  TransitionId uuid PRIMARY KEY,
+  ApplicationId uuid NOT NULL REFERENCES Application(ApplicationId),
+  FromStageId uuid,
+  ToStageId uuid NOT NULL REFERENCES PipelineStage(StageId),
+  ChangedBy uuid NOT NULL REFERENCES "User"(UserId),
+  Reason varchar(240),
+  OccurredAt timestamptz NOT NULL
+);
+```
+
+Esta base permite **medir, auditar y automatizar** el flujo de selección desde el primer día, sosteniendo los tres pilares del MVP y dejando espacio para extensiones (matching predictivo, briefing rooms, marketplace).
+
+**LTI** propone pasar de “gestionar” a **orquestar** talento: **la IA como socio operativo** y la colaboración como norma.
